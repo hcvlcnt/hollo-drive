@@ -1,0 +1,20 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">Hollo em %h</name>
+
+  <service>
+    <type>_hollo._tcp</type>
+    <port>8080</port>
+    <txt-record>version=1</txt-record>
+    <txt-record>path=/api</txt-record>
+    <txt-record>health=/health</txt-record>
+    <txt-record>secure=false</txt-record>
+  </service>
+
+  <service>
+    <type>_http._tcp</type>
+    <port>8080</port>
+    <txt-record>path=/</txt-record>
+  </service>
+</service-group>

@@ -1,0 +1,85 @@
+services:
+  avahi:
+    profiles: ["discovery"]
+    build:
+      context: ./infra/avahi
+    container_name: hollo-avahi
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./infra/avahi/services:/etc/avahi/services:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development-dependencies-env
+    container_name: hollo-frontend
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hollo-backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=hollo;Username=postgres;Password=postgres
+      AzureBlobStorage__AccountName: hollo
+      AzureBlobStorage__AccountKey: aG9sbG8tbG9jYWwtZGV2ZWxvcG1lbnQtc3RvcmFnZS1rZXktMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=
+      AzureBlobStorage__ContainerName: files
+      AzureBlobStorage__BlobServiceUri: http://azurite:10000/hollo
+      AzureBlobStorage__UploadSasExpirationMinutes: 240
+      AzureBlobStorage__MaxUploadSizeInBytes: 53687091200
+      Auth__Issuer: hollo
+      Auth__Audience: hollo-api
+      Auth__SigningKey: hollo-default-development-signing-key-change-me
+      Auth__AccessTokenExpirationMinutes: 120
+      AdminUser__Name: Admin
+      AdminUser__Email: admin@hollo.local
+      AdminUser__Password: Admin@123456
+      HolloServer__Id: ${HOLLO_SERVER_ID:-hollo-local}
+      HolloServer__Name: ${HOLLO_SERVER_NAME:-Hollo Casa}
+      HolloServer__PublicUrl: ${HOLLO_PUBLIC_URL:-http://localhost:8080/api/}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: hollo-postgres
+    environment:
+      POSTGRES_DB: hollo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hollo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    container_name: hollo-azurite
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --location /data
+    environment:
+      AZURITE_ACCOUNTS: hollo:aG9sbG8tbG9jYWwtZGV2ZWxvcG1lbnQtc3RvcmFnZS1rZXktMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=
+    volumes:
+      - azurite_data:/data
+
+volumes:
+  postgres_data:
+  azurite_data:
