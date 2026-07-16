@@ -339,4 +339,4 @@ Se o banco nao conectar:
 
 ## Licenca
 
-Defina a licenca antes de distribuir o projeto.
+MIT
